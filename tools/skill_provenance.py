@@ -32,6 +32,7 @@ Usage:
 """
 
 import contextvars
+from typing import Optional
 
 
 _write_origin: contextvars.ContextVar[str] = contextvars.ContextVar(
@@ -43,6 +44,14 @@ _write_origin: contextvars.ContextVar[str] = contextvars.ContextVar(
 # run_agent.py's AIAgent._memory_write_origin override in
 # _spawn_background_review().
 BACKGROUND_REVIEW = "background_review"
+
+# Project skills directory override: when set by the background review fork,
+# skill_manage creates/updates skills under this project .hermes/skills/ path
+# instead of the global ~/.hermes/skills/.
+_project_skills_dir: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "project_skills_dir",
+    default=None,
+)
 
 
 def set_current_write_origin(origin: str) -> contextvars.Token[str]:
@@ -76,3 +85,25 @@ def is_background_review() -> bool:
     """Convenience: True iff the current write origin is the background
     review fork."""
     return get_current_write_origin() == BACKGROUND_REVIEW
+
+
+def set_project_skills_dir(path: Optional[str]) -> contextvars.Token[Optional[str]]:
+    """Override the target directory for skill writes.
+
+    When set, skill_manage create/edit/patch/write_file will write to
+    this path (e.g. /path/to/project/.hermes/skills/) instead of the
+    global ~/.hermes/skills/.
+
+    Returns a Token for restoring the previous value.
+    """
+    return _project_skills_dir.set(path)
+
+
+def reset_project_skills_dir(token: contextvars.Token[Optional[str]]) -> None:
+    """Restore the previous project skills directory override."""
+    _project_skills_dir.reset(token)
+
+
+def get_project_skills_dir() -> Optional[str]:
+    """Return the current project skills directory override, or None."""
+    return _project_skills_dir.get()

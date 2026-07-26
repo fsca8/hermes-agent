@@ -596,7 +596,22 @@ def _validate_content_size(content: str, label: str = "SKILL.md") -> Optional[st
 
 
 def _resolve_skill_dir(name: str, category: str = None) -> Path:
-    """Build the directory path for a new skill, optionally under a category."""
+    """Build the directory path for a new skill, optionally under a category.
+
+    Checks for a project skills directory override (set by the background
+    review fork when the conversation references a project with .hermes/skills/).
+    Falls back to the global ~/.hermes/skills/ otherwise.
+    """
+    try:
+        from tools.skill_provenance import get_project_skills_dir
+        proj_dir = get_project_skills_dir()
+        if proj_dir:
+            base = Path(proj_dir)
+            if category:
+                return base / category / name
+            return base / name
+    except Exception:
+        pass
     if category:
         return _skills_dir() / category / name
     return _skills_dir() / name
@@ -1372,6 +1387,15 @@ def skill_manage(
         return gate_result
 
     if action == "create":
+        # Background review must NOT create global skills — only project-level.
+        from tools.skill_provenance import is_background_review, get_project_skills_dir
+        if is_background_review() and not get_project_skills_dir():
+            return tool_error(
+                "Background review cannot create global skills. "
+                "Only skills in project .hermes/skills/ directories are allowed. "
+                "Try patching an existing skill instead.",
+                success=False,
+            )
         if not content:
             return tool_error("content is required for 'create'. Provide the full SKILL.md text (frontmatter + body).", success=False)
         result = _create_skill(name, content, category)

@@ -307,6 +307,14 @@ def build_turn_context(
     # Bind the skill write-origin ContextVar for this thread.
     set_current_write_origin(getattr(agent, "_memory_write_origin", "assistant_tool"))
 
+    # Bind the project skills directory override (set by background review fork
+    # when conversation references a project with .hermes/skills/).
+    try:
+        from tools.skill_provenance import set_project_skills_dir
+        set_project_skills_dir(getattr(agent, "_project_skills_dir", None))
+    except Exception:
+        pass
+
     # Restore the primary runtime if the previous turn activated fallback.
     agent._restore_primary_runtime()
 
