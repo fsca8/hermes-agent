@@ -289,10 +289,21 @@ class MemoryStore:
 
     @staticmethod
     def _path_for(target: str) -> Path:
-        mem_dir = get_memory_dir()
         if target == "user":
-            return mem_dir / "USER.md"
-        return mem_dir / "MEMORY.md"
+            # User profile always lives globally — never routed to a project.
+            return get_memory_dir() / "USER.md"
+        # Project memory routing: when the background review (or a caller)
+        # set a project memory dir, the "memory" target writes to the
+        # project's .hermes/memory/MEMORY.md so project knowledge never
+        # pollutes the global store (mirrors project skills routing).
+        try:
+            from tools.skill_provenance import get_project_memory_dir
+            proj = get_project_memory_dir()
+            if proj:
+                return Path(proj) / "MEMORY.md"
+        except Exception:
+            pass
+        return get_memory_dir() / "MEMORY.md"
 
     def _reload_target(self, target: str, *, skip_drift: bool = False) -> Optional[str]:
         """Re-read entries from disk into in-memory state.
@@ -318,8 +329,9 @@ class MemoryStore:
 
     def save_to_disk(self, target: str):
         """Persist entries to the appropriate file. Called after every mutation."""
-        get_memory_dir().mkdir(parents=True, exist_ok=True)
-        self._write_file(self._path_for(target), self._entries_for(target))
+        path = self._path_for(target)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self._write_file(path, self._entries_for(target))
 
     def _entries_for(self, target: str) -> List[str]:
         if target == "user":
@@ -1091,6 +1103,13 @@ MEMORY_SCHEMA = {
         "removes or shortens enough stale entries and adds the new one together.\n\n"
         "TARGETS: 'user' = who the user is (name, role, preferences, style). 'memory' = your "
         "notes (environment, conventions, tool quirks, lessons).\n\n"
+        "PROJECT ROUTING: when this session is working inside a project that has a .hermes/ "
+        "directory, project-scoped knowledge is written to the project's "
+        ".hermes/memory/MEMORY.md instead of the global store (automatic). Keep project "
+        "build quirks, architecture facts, and project-specific pitfalls out of the global "
+        "memory — they belong in the project's .hermes/ (skills or memory), never in global "
+        "memory. Global memory is only for cross-project environment facts, your "
+        "preferences, and lessons that apply everywhere.\n\n"
         "SKIP: trivial/obvious info, easily re-discovered facts, raw data dumps, task progress, "
         "completed-work logs, temporary TODO state (use session_search for those). Reusable "
         "procedures belong in a skill, not memory."

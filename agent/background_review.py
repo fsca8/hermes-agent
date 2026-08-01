@@ -753,10 +753,15 @@ def _run_review_in_thread(
             # Scan conversation for project paths (e.g. "~/works/xxx").
             # If a project with .hermes/skills/ is found, set the override
             # so the review fork writes skills there instead of global.
+            # Also route memory writes to the project's .hermes/memory/
+            # so project knowledge never pollutes the global memory store.
             try:
                 _proj_skills = _detect_project_skills_dir(messages_snapshot)
                 if _proj_skills:
                     review_agent._project_skills_dir = _proj_skills
+                    _proj_root = os.path.dirname(os.path.dirname(_proj_skills))
+                    _proj_memory = os.path.join(_proj_root, ".hermes", "memory")
+                    review_agent._project_memory_dir = _proj_memory
             except Exception:
                 pass
 

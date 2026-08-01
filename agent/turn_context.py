@@ -310,8 +310,9 @@ def build_turn_context(
     # Bind the project skills directory override (set by background review fork
     # when conversation references a project with .hermes/skills/).
     try:
-        from tools.skill_provenance import set_project_skills_dir
+        from tools.skill_provenance import set_project_skills_dir, set_project_memory_dir
         set_project_skills_dir(getattr(agent, "_project_skills_dir", None))
+        set_project_memory_dir(getattr(agent, "_project_memory_dir", None))
     except Exception:
         pass
 

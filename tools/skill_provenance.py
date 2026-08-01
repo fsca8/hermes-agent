@@ -53,6 +53,15 @@ _project_skills_dir: contextvars.ContextVar[Optional[str]] = contextvars.Context
     default=None,
 )
 
+# Project memory directory override: when set, the memory tool writes the
+# "memory" target to <project>/.hermes/memory/MEMORY.md instead of the global
+# ~/.hermes/memories/MEMORY.md. Mirrors _project_skills_dir so project-scoped
+# knowledge stays in the project (rule: never pollute global dirs).
+_project_memory_dir: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "project_memory_dir",
+    default=None,
+)
+
 
 def set_current_write_origin(origin: str) -> contextvars.Token[str]:
     """Bind the active write origin to the current context.
@@ -107,3 +116,26 @@ def reset_project_skills_dir(token: contextvars.Token[Optional[str]]) -> None:
 def get_project_skills_dir() -> Optional[str]:
     """Return the current project skills directory override, or None."""
     return _project_skills_dir.get()
+
+
+def set_project_memory_dir(path: Optional[str]) -> contextvars.Token[Optional[str]]:
+    """Override the target directory for memory-tool writes.
+
+    When set, memory(action=..., target="memory") writes to
+    <project>/.hermes/memory/MEMORY.md instead of the global
+    ~/.hermes/memories/MEMORY.md. The "user" target is NEVER routed to a
+    project — user profile always lives globally.
+
+    Returns a Token for restoring the previous value.
+    """
+    return _project_memory_dir.set(path)
+
+
+def reset_project_memory_dir(token: contextvars.Token[Optional[str]]) -> None:
+    """Restore the previous project memory directory override."""
+    _project_memory_dir.reset(token)
+
+
+def get_project_memory_dir() -> Optional[str]:
+    """Return the current project memory directory override, or None."""
+    return _project_memory_dir.get()
